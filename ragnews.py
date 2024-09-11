@@ -65,39 +65,36 @@ def translate_text(text):
 
 
 def extract_keywords(text, seed=None):
-    r'''
-    This is a helper function for RAG.
-    Given an input text,
-    this function extracts the keywords that will be used to perform the search for articles that will be used in RAG.
+    system_prompt = '''You are an AI assistant tasked with extracting keywords from a given text. Your goal is to generate a list of all relevant and related words that capture the main ideas, topics, and concepts from the text. In addition to the core ideas, include any related words that provide additional context or depth.
 
-    >>> extract_keywords('Who is the current democratic presidential nominee?', seed=0)
-    'Joe candidate nominee presidential Democrat election primary TBD voting politics'
-    >>> extract_keywords('What is the policy position of Trump related to illegal Mexican immigrants?', seed=0)
-    'Trump Mexican immigrants policy position illegal border control deportation walls'
+Your output should consist of as many relevant and related keywords as possible. Focus on identifying both the key concepts and any closely connected ideas, actions, entities, or themes. Related terms are important, so include any words that are contextually important to the main topics of the text.
 
-    Note that the examples above are passing in a seed value for deterministic results.
-    In production, you probably do not want to specify the seed.
-    '''
-    
-    # Define the system prompt to instruct the LLM to extract keywords
-    system_prompt = '''
-    You are an AI assistant that extracts keywords from a given text.
-    Your job is to output the most important words that represent the main topics, entities, or themes in the text.
-    The output should be a space-separated list of at least 8-10 relevant keywords.
-    Do not include common words like 'the', 'is', 'and', etc.
-    Focus on extracting a broad range of relevant keywords from the text, including names, events, places, and any specific concepts.
-    Provide as many relevant keywords as possible, at least 8 to 10.'''
+The output should be a space-separated list of words with no punctuation, no formatting, and no additional commentary. Your task is to list as many relevant words as possible that reflect both the direct content of the text and any associated or related ideas. There is no limit to the number of words—include every relevant keyword and related concept you can think of.
+
+Do not include common filler words like “the,” “is,” “and,” “of,” or any other similar words that do not add value. Focus on the important words that provide meaningful context and help summarize the text. You can include nouns, verbs, proper nouns, adjectives, and any other terms that are useful for understanding the main ideas.
+
+If the text contains complex or broad topics, include related concepts to provide a more comprehensive understanding. There is no need to limit yourself to just the most obvious keywords—add all important and related words that could help explain or expand upon the main ideas.
+
+Your only output should be a space-separated list of words, without any punctuation or extra formatting. Focus on providing as many relevant and related words as possible. The more words that accurately reflect the content of the text, the better.
+
+Compound concepts like "climate change" or "border control" should be included, but they should be separated by a space, not combined with punctuation. The output must contain only words, and all relevant and related terms should be included to capture the full context of the text. You are an AI assistant tasked with extracting keywords from a given text. Your goal is to generate a list of all relevant and related words that capture the main ideas, topics, and concepts from the text. In addition to the core ideas, include any related words that provide additional context or depth.
+
+Your output must consist only of space-separated keywords. **Do not include any explanations, notes, or commentary of any kind.** The only acceptable output is a list of words separated by spaces. There should be no punctuation, labels, numbers, or additional text.
+
+The task is to provide as many relevant and related words as possible that reflect the main topics, ideas, and any closely connected concepts. Include key terms, actions, people, places, and themes that are important to understanding the text. There is no limit to how many words you can include.
+
+Do not include any filler words such as "the," "is," "and," "of," or any other similar words that do not add value. Focus on meaningful words that summarize the key content and any related ideas. You can include nouns, verbs, adjectives, proper nouns, and compound concepts, but compound terms like "border control" should be separated by a space.
+
+Remember: **Do not include any notes or explanations**. Only output a space-separated list of relevant words.'''
 
     # Define the user prompt as the input text
     user_prompt = f"Extract keywords from the following text: {text}"
 
     # Call the run_llm function to get the keywords
-    keywords = run_llm(system_prompt, user_prompt)
+    keywords = run_llm(system_prompt, user_prompt, seed=seed)
 
     # Return the result from the LLM (assuming it's already a space-separated string of keywords)
-    return keywords   
-
- 
+    return keywords
     # FIXME:
     # Implement this function.
     # It's okay if you don't get the exact same keywords as me.

@@ -99,5 +99,6 @@ Remember: **Do not include any notes or explanations**. Only output a space-sepa
 
 # Example usage and test cases
 if __name__ == "__main__":
+    print(extract_keywords('What are good places to fish in Southern California?', seed=0))
     print(extract_keywords('Who is the current democratic presidential nominee?', seed=0))
     print(extract_keywords('What is the policy position of Trump related to illegal Mexican immigrants?', seed=0))
