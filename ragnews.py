@@ -14,6 +14,8 @@ import logging
 import re
 import requests
 import sqlite3
+import random
+import spacy
 
 import groq
 import metahtml
@@ -76,7 +78,26 @@ def extract_keywords(text, seed=None):
     Note that the examples above are passing in a seed value for deterministic results.
     In production, you probably do not want to specify the seed.
     '''
+    
+    # Define the system prompt to instruct the LLM to extract keywords
+    system_prompt = '''
+    You are an AI assistant that extracts keywords from a given text.
+    Your job is to output the most important words that represent the main topics, entities, or themes in the text.
+    The output should be a space-separated list of at least 8-10 relevant keywords.
+    Do not include common words like 'the', 'is', 'and', etc.
+    Focus on extracting a broad range of relevant keywords from the text, including names, events, places, and any specific concepts.
+    Provide as many relevant keywords as possible, at least 8 to 10.'''
 
+    # Define the user prompt as the input text
+    user_prompt = f"Extract keywords from the following text: {text}"
+
+    # Call the run_llm function to get the keywords
+    keywords = run_llm(system_prompt, user_prompt)
+
+    # Return the result from the LLM (assuming it's already a space-separated string of keywords)
+    return keywords   
+
+ 
     # FIXME:
     # Implement this function.
     # It's okay if you don't get the exact same keywords as me.
@@ -84,6 +105,9 @@ def extract_keywords(text, seed=None):
     # To make the test cases above pass,
     # you'll have to modify them to be what the output of your prompt provides.
 
+if __name__ == "__main__":
+    print(extract_keywords('Who is the current democratic presidential nominee?', seed=0))
+    print(extract_keywords('What is the policy position of Trump related to illegal Mexican immigrants?', seed=0))
 
 ################################################################################
 # helper functions
