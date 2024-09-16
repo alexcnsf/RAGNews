@@ -1,13 +1,11 @@
-# Retrieval Augmented Generation (RAG) News Project ![](https://github.com/alexcnsf/RAGNews/blob/main/.github/workflows/tests/badge.svg)
+# RAG GROQ LLM for Politcial News ![](https://github.com/alexcnsf/RAGNews/workflows/tests/badge.svg)
 
 This repository using RAG to equip GROQ's low-latency LLM API with up-to-date information regarding current politics. This allows it to answer questions, such as who is the Democractic Presidential Nominee non-RAG LLM's are unable to answer correctly. 
 
-## Prereqs
+## Usage Notes
 
 - Before running please install all the libraries listed in the requirements.txt file.
 - And input your own GROQ API key into your `.env` file in the main directory. You can create your own key from here [Groq API KEY](https://groq.com).
-
-## Usage Steps
 
 To use ragnews.py, follow these steps:
 
