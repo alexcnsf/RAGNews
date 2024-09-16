@@ -1,7 +1,6 @@
 certifi==2024.8.30  # Required for requests
 groq==0.11.0        # Used to interact with the Groq API
 idna==3.10          # Required for requests
-metahtml==1.0.2     # Used for parsing metadata from HTML
 requests==2.31.0    # Used for HTTP requests to fetch web pages
 sqlite3             # Built-in Python library, no need to specify in requirements.txt
 
