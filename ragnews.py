@@ -147,20 +147,12 @@ def rag(text, db):
 
     '''
 
-    # FIXME:
-    # Implement this function.
-    # Recall that your RAG system should:
-    # 1. Extract keywords from the text.
-    # 2. Use those keywords to find articles related to the text.
-    # 3. Construct a new user prompt that includes all of the articles and the original text.
-    # 4. Pass the new prompt to the LLM and return the result.
-    #
-    # HINT:
-    # You will also have to write your own system prompt to use with the LLM.
-    # I needed a fairly long system prompt (about 15 lines) in order to get good results.
-    # You can start with a basic system prompt right away just to check if things are working,
-    # but don't spend a lot of time on the system prompt until you're sure everything else is working.
-    # Then, you can iteratively add more commands into the system prompt to correct "bad" behavior you see in your program's output.
+    keywords = extract_keywords(text)
+    articles = db.find_articles(query = keywords)
+
+    system = f"You are a professional journalist assigned with answering a question from a reader using a set of articles provided to you as context."
+    user = f"{text}\n\nArticles:\n\n" + '\n\n'.join([f"{article['title']}\n{article['en_summary']}" for article in articles])
+    return run_llm(system, user)
 
 
 class ArticleDB:
@@ -242,21 +234,16 @@ class ArticleDB:
         Lowering the value of the timebias_alpha parameter will result in the time becoming more influential.
         The final ranking is computed by the FTS5 rank * timebias_alpha / (days since article publication + timebias_alpha).
         '''
-        
-        # FIXME:
-        # Implement this function.
-        # You do not need to concern yourself with the timebias_alpha parameter.
-        # (Although I encourage you to try!)
-        #
-        # HINT:
-        # The only thing my solution does is pass a SELECT statement to the sqlite3 database.
-        # The SELECT statement will need to use sqlite3's FTS5 syntax for full text search.
-        # If you need to review how to coordinate sqlite3 and python,
-        # there is an example in the __len__ method below.
-        # The details of the SELECT statement will be different
-        # (because the functions collect different information)
-        # but the outline of the python code is the same.
+	match_string = query
 
+        sql = f"""
+        SELECT title, text, hostname, url, publish_date, crawl_date, lang, en_translation, en_summary 
+        FROM articles 
+        WHERE articles MATCH ? 
+        ORDER BY bm25(articles) ASC 
+        LIMIT ?;
+        """        
+    
     @_catch_errors
     def add_url(self, url, recursive_depth=0, allow_dupes=False):
         '''
