@@ -11,10 +11,11 @@ from urllib.parse import urlparse
 import datetime
 import logging
 import re
-import requests
 import sqlite3
+
 import groq
-import metahtml
+
+from groq import Groq
 import os
 
 ################################################################################
