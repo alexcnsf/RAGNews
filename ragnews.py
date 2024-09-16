@@ -102,10 +102,6 @@ Remember: **Do not include any notes or explanations**. Only output a space-sepa
     # To make the test cases above pass,
     # you'll have to modify them to be what the output of your prompt provides.
 
-if __name__ == "__main__":
-    print(extract_keywords('Who is the current democratic presidential nominee?', seed=0))
-    print(extract_keywords('What is the policy position of Trump related to illegal Mexican immigrants?', seed=0))
-
 ################################################################################
 # helper functions
 ################################################################################
