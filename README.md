@@ -11,9 +11,15 @@ To use ragnews.py, follow these steps:
 
 1. Run the ragnews.py script with the command: ` python3 ragnews.py `
 
-2. The system will prompt you with: ` ragnews> `
+2. The system will prompt you with: 
+```
+ ragnews> 
+```
 
-4. And ask it anything you are wondering such as: ` ragnews> Who is the current Democractic Parties Presidential candidate? `
+4. And ask it anything you are wondering such as: 
+``` 
+ragnews> Who is the current Democractic Parties Presidential candidate? 
+```
 
 And it will give an output like this!
 
