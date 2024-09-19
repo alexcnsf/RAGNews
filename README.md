@@ -5,7 +5,10 @@ This repository using RAG to equip GROQ's low-latency LLM API with up-to-date in
 ## Usage Notes
 
 - **Requirements**: All requirements and dependencies are listed in the up-to-date requirements.txt file.
-- **API Key** You have ot create your own [Groq API key](https://groq.com) and store it as GROQ_API_KEY in your `.env` file (e.g. `GROQ_API_KEY=your_key_here`) and you must initialize the enviromental variable using code: ` $ export $(cat .env) `
+- **API Key** You have ot create your own [Groq API key](https://groq.com) and store it as GROQ_API_KEY in your `.env` file (e.g. `GROQ_API_KEY=your_key_here`) and you must initialize the enviromental variable using code: 
+```
+$ export $(cat .env)
+``` 
 
 To use ragnews.py, follow these steps:
 
