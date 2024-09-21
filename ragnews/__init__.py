@@ -224,15 +224,17 @@ class ArticleDB:
         Lowering the value of the timebias_alpha parameter will result in the time becoming more influential.
         The final ranking is computed by the FTS5 rank * timebias_alpha / (days since article publication + timebias_alpha).
         '''
-        
+
         cursor = self.db.cursor()
-        # Create a string for the MATCH operator with all keywords
-        match_string = query
+
+        # Clean the query to remove any special characters that might cause issues
+        match_string = re.sub(r'[^a-zA-Z0-9\s]', '', query)  # Remove special characters like @, #, etc.
+
         sql = f"""
-        SELECT title, text, hostname, url, publish_date, crawl_date, lang, en_translation, en_summary 
-        FROM articles 
-        WHERE articles MATCH ? 
-        ORDER BY bm25(articles) ASC 
+        SELECT title, text, hostname, url, publish_date, crawl_date, lang, en_translation, en_summary
+        FROM articles
+        WHERE articles MATCH ?
+        ORDER BY bm25(articles) ASC
         LIMIT ?;
         """
         cursor.execute(sql, (match_string, limit))
@@ -240,10 +242,12 @@ class ArticleDB:
 
         # Get column names from cursor description
         columns = [column[0] for column in cursor.description]
-       # Convert rows to list of dictionaries
+
+        # Convert rows to list of dictionaries
         output = [dict(zip(columns, row)) for row in rows]
         return output
-   
+
+  
     @_catch_errors
     def add_url(self, url, recursive_depth=0, allow_dupes=False):
         '''
