@@ -124,26 +124,44 @@ def _catch_errors(func):
 # rag
 ################################################################################
 
-
 def rag(text, db):
     '''
     This function uses retrieval augmented generation (RAG) to generate an LLM response to the input text.
     The db argument should be an instance of the `ArticleDB` class that contains the relevant documents to use.
-
-    NOTE:
-    There are no test cases because:
-    1. the answers are non-deterministic (both because of the LLM and the database), and
-    2. evaluating the quality of answers automatically is non-trivial.
-
     '''
-
+    
     keywords = extract_keywords(text)
-    articles = db.find_articles(query = keywords)
+    articles = db.find_articles(query=keywords)
 
-    system = f"You are a professional journalist assigned with answering a question from a reader using a set of articles provided to you as context."
+    # Modify the system prompt to focus on predicting only the mask values
+    system = "You are tasked with filling in the blanks in the following sentence with the correct names. Only provide the name(s), nothing else."
     user = f"{text}\n\nArticles:\n\n" + '\n\n'.join([f"{article['title']}\n{article['en_summary']}" for article in articles])
-    return run_llm(system, user)
+    
+    # Run the LLM
+    llm_response = run_llm(system, user)
 
+    # Extract the names or masks from the LLM response
+    predicted_masks = extract_mask_values(llm_response)  # This is where you'll implement the extraction logic
+
+    return predicted_masks
+
+
+def extract_mask_values(response):
+    """
+    Extracts the predicted mask values from the LLM response.
+    The response is expected to contain the predicted names for each mask.
+    """
+    # Implement your logic to extract mask values from the LLM response.
+    # Assuming response is something like "[MASK0] = Harris, [MASK1] = Trump"
+    
+    masks = []
+    for line in response.split("\n"):
+        if "=" in line:
+            # Extract the part after the '='
+            mask_value = line.split('=')[1].strip()
+            masks.append(mask_value)
+    
+    return masks
 
 class ArticleDB:
     '''
