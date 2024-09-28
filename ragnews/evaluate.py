@@ -7,8 +7,7 @@ import ragnews
 import re
 import json
 import logging
-from tabulate import tabulate
-from prompts import CLOZE_KEYWORDS_SYSTEM_A, CLOZE_RAG_SYSTEM_A
+from .practice import CLOZE_KEYWORDS_SYSTEM_A, CLOZE_RAG_SYSTEM_A
 
 # Set up logging
 logging.basicConfig(level=logging.INFO)

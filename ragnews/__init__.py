@@ -11,12 +11,28 @@ from urllib.parse import urlparse
 import datetime
 import logging
 import re
+import random
+import time
 import sqlite3
 
 import groq
 
-from groq import Groq
+from groq import Groq, RateLimitError, InternalServerError
 import os
+
+
+# Load environment variables from .env file
+def load_env_variables():
+    if os.path.exists('.env'):
+        with open('.env') as f:
+            for line in f:
+                if line.strip() and not line.startswith('#'):
+                    key, value = line.strip().split('=', 1)
+                    os.environ[key] = value
+
+# Call the function to load environment variables
+load_env_variables()
+
 
 ################################################################################
 # LLM functions
@@ -26,12 +42,77 @@ client = Groq(
     api_key=os.environ.get("GROQ_API_KEY"),
 )
 
+def retry_with_exponential_backoff(
+    func,
+    initial_delay: float = 1,
+    exponential_base: float = 2,
+    jitter: bool = True,
+    max_retries: int = 10,
+    errors: tuple = (RateLimitError, InternalServerError),
+):
+    """
+    Retry a function with exponential backoff.
 
-def run_llm(system, user, model='llama3-8b-8192', seed=None):
+    Args:
+        func (callable): The function to retry.
+        initial_delay (float): The initial delay before retrying.
+        exponential_base (float): The base for the exponential backoff.
+        jitter (bool): Whether to add randomness to the delay.
+        max_retries (int): The maximum number of retries.
+        errors (tuple): The exceptions to catch for retrying.
+
+    Returns:
+        callable: A wrapped function that retries with exponential backoff.
+    """
+    def wrapper(*args, **kwargs):
+        num_retries = 0
+        delay = initial_delay
+
+        while True:
+            try:
+                return func(*args, **kwargs)
+            except errors as e:
+                num_retries += 1
+                if num_retries > max_retries:
+                    raise Exception(f"Maximum number of retries ({max_retries}) exceeded.")
+                delay *= exponential_base * (1 + jitter * random.random())
+                print(f"warning: rate limited, slowing down... {delay} seconds")
+                time.sleep(delay)
+            except Exception as e:
+                raise e
+
+    return wrapper
+
+@retry_with_exponential_backoff
+def completions_with_backoff(**kwargs):
+    """
+    Call the Groq API to create chat completions with retry logic.
+
+    Args:
+        **kwargs: Arbitrary keyword arguments for the API call.
+
+    Returns:
+        dict: The API response.
+    """
+    # TODO handle different types of rate limits
+    return client.chat.completions.create(**kwargs)
+
+def run_llm(system, user, model='llama-3.1-8b-instant', seed=None, temperature=None, stop=None, verbose=False):
     '''
     This is a helper function for all the uses of LLMs in this file.
     '''
-    chat_completion = client.chat.completions.create(
+    if verbose:
+        logging.info(f'-'*100)
+        logging.info(f'run_llm called with:\n'
+                     f'system: {system[:100]}\n'
+                     f'user: {user[:100]}\n...\n{user[-1000:]}\n'
+                     f'model: {model}\n'
+                     f'seed: {seed}\n'
+                     f'temperature: {temperature}\n'
+                     f'stop: {stop}'
+                     )
+    time.sleep(3)  # Add a delay between requests
+    chat_completion = completions_with_backoff(
         messages=[
             {
                 'role': 'system',
@@ -44,8 +125,13 @@ def run_llm(system, user, model='llama3-8b-8192', seed=None):
         ],
         model=model,
         seed=seed,
+        temperature=temperature,
+        stop=stop,
     )
-    return chat_completion.choices[0].message.content
+    result = chat_completion.choices[0].message.content
+    if verbose:
+        logging.info(f'run_llm result:\n{result}')
+    return result
 
 
 def summarize_text(text, seed=None):
@@ -58,43 +144,23 @@ def translate_text(text):
     return run_llm(system, text)
 
 
-def extract_keywords(text, seed=None):
-    system_prompt = '''You are an AI assistant tasked with extracting keywords from a given text. Your goal is to generate a list of all relevant and related words that capture the main ideas, topics, and concepts from the text. In addition to the core ideas, include any related words that provide additional context or depth.
+def extract_keywords(text, seed=None, temperature=None):
+    r'''
+    This is a helper function for RAG.
+    Given an input text,
+    this function extracts the keywords that will be used to perform the search for articles that will be used in RAG.
 
-Your output should consist of as many relevant and related keywords as possible. Focus on identifying both the key concepts and any closely connected ideas, actions, entities, or themes. Related terms are important, so include any words that are contextually important to the main topics of the text.
+    >>> extract_keywords('Who is the current democratic presidential nominee?', seed=0)
+    'democratic presidential nomination 2024 current candidate'
+    >>> extract_keywords('What is the policy position of Trump related to illegal Mexican immigrants?', seed=0)
+    'Trump immigration policy Mexico immigrants'
 
-The output should be a space-separated list of words with no punctuation, no formatting, and no additional commentary. Your task is to list as many relevant words as possible that reflect both the direct content of the text and any associated or related ideas. There is no limit to the number of words—include every relevant keyword and related concept you can think of.
+    Note that the examples above are passing in a seed value for deterministic results.
+    In production, you probably do not want to specify the seed.
+    '''
+    system = 'You are a professional google query rewriter. Your only job is to write search terms and keywords that will be used to search a database based on the question below. Return only a list of keywords separated by spaces, do no include any other text. Do not attempt to answer the question, just provide the keywords based only on the provided text.'
+    return run_llm(system, text, seed=seed, temperature=temperature)
 
-Do not include common filler words like “the,” “is,” “and,” “of,” or any other similar words that do not add value. Focus on the important words that provide meaningful context and help summarize the text. You can include nouns, verbs, proper nouns, adjectives, and any other terms that are useful for understanding the main ideas.
-
-If the text contains complex or broad topics, include related concepts to provide a more comprehensive understanding. There is no need to limit yourself to just the most obvious keywords—add all important and related words that could help explain or expand upon the main ideas.
-
-Your only output should be a space-separated list of words, without any punctuation or extra formatting. Focus on providing as many relevant and related words as possible. The more words that accurately reflect the content of the text, the better.
-
-Compound concepts like "climate change" or "border control" should be included, but they should be separated by a space, not combined with punctuation. The output must contain only words, and all relevant and related terms should be included to capture the full context of the text. You are an AI assistant tasked with extracting keywords from a given text. Your goal is to generate a list of all relevant and related words that capture the main ideas, topics, and concepts from the text. In addition to the core ideas, include any related words that provide additional context or depth.
-
-Your output must consist only of space-separated keywords. **Do not include any explanations, notes, or commentary of any kind.** The only acceptable output is a list of words separated by spaces. There should be no punctuation, labels, numbers, or additional text.
-
-The task is to provide as many relevant and related words as possible that reflect the main topics, ideas, and any closely connected concepts. Include key terms, actions, people, places, and themes that are important to understanding the text. There is no limit to how many words you can include.
-
-Do not include any filler words such as "the," "is," "and," "of," or any other similar words that do not add value. Focus on meaningful words that summarize the key content and any related ideas. You can include nouns, verbs, adjectives, proper nouns, and compound concepts, but compound terms like "border control" should be separated by a space.
-
-Remember: **Do not include any notes or explanations**. Only output a space-separated list of relevant words.'''
-
-    # Define the user prompt as the input text
-    user_prompt = f"Extract keywords from the following text: {text}"
-
-    # Call the run_llm function to get the keywords
-    keywords = run_llm(system_prompt, user_prompt, seed=seed)
-
-    # Return the result from the LLM (assuming it's already a space-separated string of keywords)
-    return keywords
-    # FIXME:
-    # Implement this function.
-    # It's okay if you don't get the exact same keywords as me.
-    # You probably certainly won't because you probably won't come up with the exact same prompt as me.
-    # To make the test cases above pass,
-    # you'll have to modify them to be what the output of your prompt provides.
 
 ################################################################################
 # helper functions
@@ -125,7 +191,7 @@ def _catch_errors(func):
 ################################################################################
 
 
-def rag(text, db):
+def rag(question, db, keywords=None, system=None, temperature=None, stop=None, max_articles_length=None, verbose=False):
     '''
     This function uses retrieval augmented generation (RAG) to generate an LLM response to the input text.
     The db argument should be an instance of the `ArticleDB` class that contains the relevant documents to use.
@@ -137,12 +203,66 @@ def rag(text, db):
 
     '''
 
-    keywords = extract_keywords(text)
-    articles = db.find_articles(query = keywords)
-
-    system = f"You are a professional journalist assigned with answering a question from a reader using a set of articles provided to you as context."
-    user = f"{text}\n\nArticles:\n\n" + '\n\n'.join([f"{article['title']}\n{article['en_summary']}" for article in articles])
-    return run_llm(system, user)
+    # 1. Extract keywords from the question.
+    if keywords is None:
+        keywords = extract_keywords(question, seed=0)
+    # 2. Use those keywords to find articles related to the question.
+    articles = db.find_articles(keywords, limit=5)
+    if len(articles) == 0:
+        return "No articles found"
+    # TODO. switch this to detecting long articles when retrieved and returning summary instead
+    if max_articles_length is not None:
+        # Check if the combined length of all articles is greater than x characters
+        combined_length = sum(
+            len(article['en_translation'] if article.get('en_translation') is not None else article['text'])
+            for article in articles
+        )
+        logging.info(f'combined_length: {combined_length}')
+        while combined_length > max_articles_length and articles:
+            # Remove the last article from the articles list
+            removed_article = articles.pop()
+            combined_length -= len(
+                removed_article['en_translation'] if removed_article.get('en_translation') is not None else removed_article['text']
+            )
+            logging.info(f'removed_article. new combined_length: {combined_length}')
+    # get english translations of the articles using translate_text() and add them to the articles object
+    # 3. Construct a new user prompt that includes all of the articles and the original text.
+    # create a formatted string that includes the title, publish_date, translation, urls of the articles
+    article_template = (
+        "<article>\n"
+        "  <title>{title}</title>\n"
+        "  <publish_date>{publish_date}</publish_date>\n"
+        "  <text>{text}</text>\n"
+        "  <source>{url}</source>\n"
+        "</article>\n"
+    )
+    articles_str = '\n'.join([
+        article_template.format(
+            title=article['title'],
+            publish_date=article['publish_date'],
+            text=article['en_translation'] if article.get('en_translation') is not None else article['text'],
+            url=article['url']
+        ) for article in articles
+    ])
+    # 4. Pass the new prompt to the LLM and return the result.
+    if system is None:
+        system = "You are a helpful research assistant that tries to answer the user's question based on the information provided from articles below. Do not ever use any information outside of the articles provided. Only respond with the answer to the question. Use numbered citations like [1] [2] [3] at the end of sentences. Always respond with the full citation at the end of the answer like this:\nSources:\n[1] https://example.com/article1\n[2] https://example.com/article2\n[3] https://example.com/article3"
+    user = (
+        "<context>\n"
+        "{articles_str}\n"
+        "</context>\n"
+        "<question>\n"
+        "{text}\n"
+        "</question>\n"
+    ).format(articles_str=articles_str, text=question)
+    return run_llm(system, user, temperature=temperature, stop=stop, verbose=verbose)
+    #
+    # HINT:
+    # You will also have to write your own system prompt to use with the LLM.
+    # I needed a fairly long system prompt (about 15 lines) in order to get good results.
+    # You can start with a basic system prompt right away just to check if things are working,
+    # but don't spend a lot of time on the system prompt until you're sure everything else is working.
+    # Then, you can iteratively add more commands into the system prompt to correct "bad" behavior you see in your program's output.
 
 
 class ArticleDB:
@@ -170,7 +290,7 @@ class ArticleDB:
     >>> articles[0]['title']
     'La creación de empleo defrauda en Estados Unidos en agosto y aviva el temor a una recesión | Economía | EL PAÍS'
     >>> articles[0].keys()
-    ['rowid', 'rank', 'title', 'publish_date', 'hostname', 'url', 'staleness', 'timebias', 'en_summary', 'text']
+    dict_keys(['rowid', 'title', 'text', 'hostname', 'url', 'publish_date', 'crawl_date', 'lang', 'en_translation', 'en_summary', 'rank', 'relevancy'])
     '''
 
     _TESTURLS = [
@@ -222,28 +342,27 @@ class ArticleDB:
         Return a list of articles in the database that match the specified query.
 
         Lowering the value of the timebias_alpha parameter will result in the time becoming more influential.
-        The final ranking is computed by the FTS5 rank * timebias_alpha / (days since article publication + timebias_alpha).
+        The final ranking is computed by the FTS5 -rank (lower is more relevant) * timebias_alpha / (days since article publication + timebias_alpha).
         '''
-        
-        cursor = self.db.cursor()
-        # Create a string for the MATCH operator with all keywords
-        match_string = query
-        sql = f"""
-        SELECT title, text, hostname, url, publish_date, crawl_date, lang, en_translation, en_summary 
-        FROM articles 
-        WHERE articles MATCH ? 
-        ORDER BY bm25(articles) ASC 
-        LIMIT ?;
-        """
-        cursor.execute(sql, (match_string, limit))
-        rows = cursor.fetchall()
+        sql = '''
+        SELECT rowid, title, text, hostname, url, publish_date, crawl_date, lang, en_translation, en_summary, rank,
+               -rank * :timebias_alpha / (julianday('now') - julianday(publish_date) + :timebias_alpha) AS relevancy
+        FROM articles
+        WHERE articles MATCH :query
+        ORDER BY relevancy DESC
+        LIMIT :limit;
+        '''
+        # TODO Consider term relevancy reranking https://pastebin.com/raw/pW4dP2Qc
+        # Remove or escape special characters, but preserve Unicode word characters
+        query = re.sub(r'[^\w\s]', '', query, flags=re.UNICODE)
 
-        # Get column names from cursor description
-        columns = [column[0] for column in cursor.description]
-       # Convert rows to list of dictionaries
-        output = [dict(zip(columns, row)) for row in rows]
-        return output
-   
+        _logsql(sql)
+        cursor = self.db.cursor()
+        cursor.execute(sql, {'timebias_alpha': timebias_alpha, 'query': query, 'limit': limit})
+        rows = cursor.fetchall()
+        columns = [desc[0] for desc in cursor.description]
+        return [dict(zip(columns, row)) for row in rows]
+
     @_catch_errors
     def add_url(self, url, recursive_depth=0, allow_dupes=False):
         '''
@@ -266,6 +385,9 @@ class ArticleDB:
         3
 
         '''
+        from bs4 import BeautifulSoup
+        import requests
+        import metahtml
         logging.info(f'add_url {url}')
 
         if not allow_dupes:
@@ -361,6 +483,7 @@ if __name__ == '__main__':
     parser.add_argument('--db', default='ragnews.db')
     parser.add_argument('--recursive_depth', default=0, type=int)
     parser.add_argument('--add_url', help='If this parameter is added, then the program will not provide an interactive QA session with the database.  Instead, the provided url will be downloaded and added to the database.')
+    parser.add_argument('--query', help='If this parameter is added, then the program will not provide an interactive QA session with the database. Instead, the provided query will be used to search the database and the results will be printed.')
     args = parser.parse_args()
 
     logging.basicConfig(
@@ -373,7 +496,9 @@ if __name__ == '__main__':
 
     if args.add_url:
         db.add_url(args.add_url, recursive_depth=args.recursive_depth, allow_dupes=True)
-
+    elif args.query:
+        output = rag(args.query, db)
+        print(output)
     else:
         import readline
         while True:
