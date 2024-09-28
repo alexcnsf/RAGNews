@@ -44,5 +44,5 @@ Where it correctly got the mask ['Trump']
 
 And overall it scored an accuracy of:
 ```
-Accuracy score: 74%:
+Accuracy score: 74%
 ```
