@@ -39,10 +39,3 @@ Trump
 Predicted labels: ['Trump']
 Actual labels: ['Trump']
 ```
-
-Where it correctly got the mask ['Trump']
-
-And overall it scored an accuracy of:
-```
-Accuracy score: 74%
-```
