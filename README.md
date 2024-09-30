@@ -7,35 +7,22 @@ This script runs a retrieval-augmented generation (RAG) classifier on the HairyT
 To run the classifier, use the following command:
 
 ```bash
-python ragnews/evaluate.py /path/to/hairy-trumpet/data/wiki__page=2024_United_States_presidential_election,recursive_depth=0__dpsize=paragraph,transformations=[canonicalize, group, rmtitles, split]
+$ python3 ragnews/evaluate.py /path/to/hairy-trumpet/data/wiki__page=2024_United_States_presidential_election,recursive_depth=0__dpsize=paragraph,transformations=[canonicalize, group, rmtitles, split]
 ```
 
 ### Results
 
-Here is an example output on one of the articles:
+Here is an example result for this command: 
 
 ```
+$ python3 -m ragnews.evaluate "hairy-trumpet/data/wiki__page=2024_United_States_presidential_election,recursive_depth=0__dpsize=paragraph,transformations=[canonicalize, group, rmtitles, split]"
+2024-09-30 02:01:33 INFO     Extracted labels: ['Biden', 'Harris', 'Walz', 'Biden', 'Trump', 'Vance', 'Trump', 'Trump', 'Biden', 'Trump', 'Trump', 'Trump', 'Biden', 'Trump', 'Trump', 'Biden', 'Biden', 'Trump', 'Trump', 'Biden', 'Harris', 'Trump', 'Biden', 'Trump', 'Trump', 'Trump', 'Trump', 'Trump', 'Trump', 'Biden', 'Biden', 'Trump', 'Trump', 'Trump', 'Trump', 'Biden', 'Trump', 'Biden', 'Trump', 'Harris', 'Trump', 'Biden', 'Trump', 'Harris', 'Trump', 'Harris', 'Harris', 'Trump', 'Trump', 'Biden', 'Harris', 'Trump', 'Trump', 'Trump', 'Trump', 'Harris', 'Biden', 'Trump', 'Trump', 'Biden', 'Trump', 'Trump', 'Harris', 'Biden', 'Harris', 'Harris', 'Biden', 'Harris', 'Trump', 'Harris', 'Trump', 'Biden', 'Trump', 'Harris', 'Harris', 'Biden', 'Trump', 'Biden', 'Trump', 'Biden', 'Harris', 'Biden', 'Trump', 'Harris', 'Trump', 'Harris', 'Trump', 'Biden', 'Biden', 'Harris', 'Biden', 'Biden', 'Biden', 'Biden', 'Trump', 'Harris', 'Biden', 'Walz', 'Harris', 'Walz', 'Trump', 'Biden', 'Trump', 'Trump', 'Trump', 'Trump', 'Trump', 'Trump', 'Trump', 'Trump', 'Vance', 'Trump', 'Oliver', 'Stein', 'Ware', 'Trump', 'Biden', 'Trump', 'Harris', 'Trump', 'Biden', 'Biden', 'Trump', 'Harris', 'Trump', 'Vance', 'Walz']
 
-</context>
-<question>
-The New York Times and Los Angeles Times editorial boards also declared [MASK0] unfit to lead, pointing to what former [MASK0] officials "have described as his systematic dishonesty, corruption, cruelty and incompetence." [MASK0] has also been criticized for his hiring decisions, and noted for his unusual criminal record.
-</question>
+predicted labels =  ['Biden', 'Harris', 'Walz', 'Biden, Trump', 'Trump', 'Vance', 'Trump', 'Trump', 'Biden', 'Trump', 'Trump', 'Trump', 'Biden', 'Trump', 'Trump', 'Biden', 'Biden', 'Trump', 'Trump', 'Biden', 'Harris', 'Trump', 'Biden', 'Trump', 'Trump, Trump', 'Trump', 'Trump', 'Trump', 'Trump, Trump', 'Biden', 'Biden', 'Biden, Biden, Biden', 'Trump, Trump, Trump', 'Trump', 'Biden', 'Biden', 'Trump', 'Biden', 'Trump', 'Harris', 'Trump', 'Biden', 'Trump', 'Biden', 'Trump', 'Biden', 'Harris', 'Trump', 'Trump', 'Trump', 'Harris', 'Trump', 'Trump', 'Trump', 'Trump', 'Harris', 'Biden', 'Trump', 'Trump', 'Biden', 'Trump', 'Trump', 'Harris', 'Biden', 'Harris', 'Harris', 'Biden', 'Harris', 'Trump', 'Biden', 'Trump', 'Biden', 'Trump', 'Harris', 'Harris', 'Biden', 'Trump', 'Biden', 'Trump', 'Biden', 'Biden', 'Biden', 'Trump', 'Harris', 'Trump', 'Harris', 'Trump', 'Biden', 'Biden, Biden', 'Harris', 'Biden', 'Biden', 'Harris', 'Biden, Biden', 'Trump', 'Harris', 'Harris', 'Harris', 'Harris', 'Biden', 'Trump', 'Biden', 'Trump', 'Trump', 'Trump', 'Trump', 'Trump, Trump, Trump', 'Trump', 'Biden', 'Trump', 'Vance', 'Trump', 'Ware', 'Trump', 'Ware', 'Trump', 'Biden', 'Trump', 'Biden', 'Trump', 'Biden', 'Biden', 'Trump', 'Biden', 'Trump', 'Harris', 'Harris']
+labels = ['Biden', 'Harris', 'Walz', 'Biden', 'Trump', 'Vance', 'Trump', 'Trump', 'Biden', 'Trump', 'Trump', 'Trump', 'Biden', 'Trump', 'Trump', 'Biden', 'Biden', 'Trump', 'Trump', 'Biden', 'Harris', 'Trump', 'Biden', 'Trump', 'Trump', 'Trump', 'Trump', 'Trump', 'Trump', 'Biden', 'Biden', 'Trump', 'Trump', 'Trump', 'Trump', 'Biden', 'Trump', 'Biden', 'Trump', 'Harris', 'Trump', 'Biden', 'Trump', 'Harris', 'Trump', 'Harris', 'Harris', 'Trump', 'Trump', 'Biden', 'Harris', 'Trump', 'Trump', 'Trump', 'Trump', 'Harris', 'Biden', 'Trump', 'Trump', 'Biden', 'Trump', 'Trump', 'Harris', 'Biden', 'Harris', 'Harris', 'Biden', 'Harris', 'Trump', 'Harris', 'Trump', 'Biden', 'Trump', 'Harris', 'Harris', 'Biden', 'Trump', 'Biden', 'Trump', 'Biden', 'Harris', 'Biden', 'Trump', 'Harris', 'Trump', 'Harris', 'Trump', 'Biden', 'Biden', 'Harris', 'Biden', 'Biden', 'Biden', 'Biden', 'Trump', 'Harris', 'Biden', 'Walz', 'Harris', 'Walz', 'Trump', 'Biden', 'Trump', 'Trump', 'Trump', 'Trump', 'Trump', 'Trump', 'Trump', 'Trump', 'Vance', 'Trump', 'Oliver', 'Stein', 'Ware', 'Trump', 'Biden', 'Trump', 'Harris', 'Trump', 'Biden', 'Biden', 'Trump', 'Harris', 'Trump', 'Vance', 'Walz']
 
-model: llama-3.1-8b-instant
-seed: None
-temperature: 0.5
-stop: </answer>
-INFO:httpx:HTTP Request: POST https://api.groq.com/openai/v1/chat/completions "HTTP/1.1 200 OK"
-INFO:root:run_llm result:
-Based on the context provided, it seems that the article is discussing former President Donald Trump. The article mentions his critics and the New York Times and Los Angeles Times editorial boards declaring him unfit to lead.
-
-The article also mentions that former officials have described Trump as having "systematic dishonesty, corruption, cruelty and incompetence." This is consistent with criticism that has been leveled against Trump throughout his presidency.
-
-Therefore [MASK0] is Trump.
-
-<answer>
-Trump
-
-Predicted labels: ['Trump']
-Actual labels: ['Trump']
+2024-09-30 02:10:40 INFO     Accuracy: 0.80
 ```
+
+This excitingly has exceeded on our goal of 70% accuracy!!
+

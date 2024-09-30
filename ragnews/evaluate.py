@@ -1,168 +1,100 @@
 '''
-For evaluating the quality of the RAG pipeline using the
-Hairy Trumpet dataset.
+This file is for evaluating the quality of our RAG system using the Hairy Trumpet dataset.
 '''
 
 import ragnews
-import re
 import json
 import logging
-from .practice import CLOZE_KEYWORDS_SYSTEM_A, CLOZE_RAG_SYSTEM_A
+import argparse
+from sklearn.metrics import accuracy_score
 
-# Set up logging
-logging.basicConfig(level=logging.INFO)
-# TODO add logging to everything
+# Setting up logging
+logging.basicConfig(
+    format='%(asctime)s %(levelname)-8s %(message)s',
+    datefmt='%Y-%m-%d %H:%M:%S',
+    level=logging.INFO
+)
+logger = logging.getLogger()
 
-class RAGClassifier:
-    def __init__(self, valid_labels):
+class RAGEvaluator:
+    # Specifying valid labels to predict with __init__ function
+    def __init__(self, labels):
+        self.valid_labels = labels
+        self.db = ragnews.ArticleDB('ragnews.db')
+
+    # Creating predictor part of the class
+    def predict(self, masked_text):
         '''
-        Initialize the RAGClassifier. The __init__ function should take
-        an input that specifies the valid labels to predict.
-        The class should be a "predictor" following the scikit-learn interface.
-        You will have to use the ragnews.rag function internally to perform the prediction.
-        '''
-        self.valid_labels = valid_labels
-
-    @staticmethod
-    def _extract_cloze_keywords(text, seed=None, temperature=None):
-        r'''
-        This is a helper function for RAG with the Cloze test.
-        Given an input text, this function extracts the keywords that will be used to perform the search for articles that will be used in RAG.
-
-        >>> text1 = """On July 13, 2024, during a campaign rally in Butler, Pennsylvania, presidential candidate [MASK0] was shot at in a failed assassination attempt. The gunfire caused minor damage to [MASK0]'s upper right ear, while one spectator was killed and two others were critically injured. On September 15, 2024, the security detail of [MASK0] spotted an armed man while the former president was touring his golf course in West Palm Beach. They opened fire on the suspect, which fled on a vehicle and was later captured thanks to the contribution of an eyewitness. In the location where the suspect was spotted, the police retrieved an AK-47-style rifle with a scope, two rucksacks and a GoPro."""
-        >>> RAGClassifier._extract_cloze_keywords(text1, seed=0)
-        'campaign, shooting, Pennsylvania, presidential, assassination'
-        >>> text2 = """After a survey by the Associated Press of Democratic delegates on July 22, 2024, [MASK0] became the new presumptive candidate for the Democratic party, a day after declaring her candidacy. She would become the official nominee on August 5 following a virtual roll call of delegates."""
-        >>> RAGClassifier._extract_cloze_keywords(text2, seed=0)
-        '"2024 democratic presumptive candidate"'
-        '''
-        system = CLOZE_KEYWORDS_SYSTEM_A
-        return ragnews.run_llm(system, text, seed=seed, temperature=temperature)
-
-    def predict(self, masked_text: str, attempt=0):
-        '''
-        Predict the labels of the documents.
-
-        >>> model = RAGClassifier(['Trump', 'Biden', 'Harris'])
-        >>> model.predict('There is no mask token')
+        >>> model = RAGEvaluator()
+        >>> model.predict('There is no mask token here')
         []
-        >>> model.predict('[MASK0] is the democratic nominee for president in 2024')
-        ['Harris']
-        >>> model.predict('[MASK0] is the democratic nominee and [MASK1] is the republican nominee')
-        ['Harris', 'Trump']
-        >>> text1 = """On July 13, 2024, during a campaign rally in Butler, Pennsylvania, presidential candidate [MASK0] was shot at in a failed assassination attempt. The gunfire caused minor damage to [MASK0]'s upper right ear, while one spectator was killed and two others were critically injured. On September 15, 2024, the security detail of [MASK0] spotted an armed man while the former president was touring his golf course in West Palm Beach. They opened fire on the suspect, which fled on a vehicle and was later captured thanks to the contribution of an eyewitness. In the location where the suspect was spotted, the police retrieved an AK-47-style rifle with a scope, two rucksacks and a GoPro."""
-        >>> model.predict(text1)
-        ['Trump']
-        >>> text2 = """After a survey by the Associated Press of Democratic delegates on July 22, 2024, [MASK0] became the new presumptive candidate for the Democratic party, a day after declaring her candidacy. She would become the official nominee on August 5 following a virtual roll call of delegates."""
-        >>> model.predict(text2)
+        >>> model.predict("The incumbent president, [MASK0], a member of the Democratic Party, initially ran for re-election and became the party's presumptive nominee, facing little opposition. However, [MASK0]'s performance in the June 2024 presidential debate intensified concerns about his age and health, and led to calls within his party for him to leave the race. Although initially adamant that he would remain in the race, [MASK0] ultimately withdrew on July 21 and endorsed Harris, who became the party's nominee on August 5. Harris selected Walz, the governor of Minnesota, as her running mate. [MASK0]'s withdrawal makes him the first eligible incumbent president since Lyndon B. Johnson in 1968 not to run for re-election, and the first to withdraw after securing enough delegates to win the nomination. Harris is the first nominee who did not participate in the primaries since Vice President Hubert Humphrey, also in 1968.")
+        ['Biden']
+        >>> model.predict("The incumbent president, Biden, a member of the Democratic Party, initially ran for re-election and became the party's presumptive nominee, facing little opposition. However, Biden's performance in the June 2024 presidential debate intensified concerns about his age and health, and led to calls within his party for him to leave the race. Although initially adamant that he would remain in the race, Biden ultimately withdrew on July 21 and endorsed [MASK0], who became the party's nominee on August 5. [MASK0] selected Walz, the governor of Minnesota, as her running mate. Biden's withdrawal makes him the first eligible incumbent president since Lyndon B. Johnson in 1968 not to run for re-election, and the first to withdraw after securing enough delegates to win the nomination. [MASK0] is the first nominee who did not participate in the primaries since Vice President Hubert Humphrey, also in 1968.")
         ['Harris']
         '''
-        db = ragnews.ArticleDB('ragnews.db')
-        
-        # Check if there are any mask tokens in the text
-        if not re.search(r'\[MASK\d+\]', masked_text):
-            return []
+        textprompt = f'''
+This is a fancier question that is based on standard cloze style benchmarks. 
+I am going to provide you a sentence, and that sentence will have a mask token inside of it that will look like [MASK0] or [MASK1] or [MASK2] and so on. 
+Your job is to tell me what the value of that mask token was. 
+The size of your output should just be a single word for each mask. If there is one mask, output one word. For example, if you believe the output should be 'Harris,' only output 'Harris,' not 'Harris, Harris, Harris.'
+You should not provide any explanation or other extraneous words in the output, only provide a single word for each mask, with absolutely nothing else. 
+You will get a prize if you respond with just the masked token(s). You will be punished if you output your thought process, a description of the information you're learning from, or any information that is not the masked tokens.
+If there are multiple mask tokens, provide each token separately with whitespace in between. 
+Valid values include: {', '.join(self.valid_labels)}
 
-        masks = list(set(re.findall(r'\[MASK\d+\]', masked_text)))
-        
-        # Set dynamic example names depending on the number of masks
-        example_names = ['Alice', 'Bob', 'Eve', 'Mallory', 'Trent']
-        example_mapping = ', '.join([f'[MASK{i}] is {example_names[i]}' for i in range(len(masks))])
-        example_answers = '\n'.join(example_names[:len(masks)])
-        
-        system = CLOZE_RAG_SYSTEM_A
-        system = system.format(
-            masks=' '.join(masks),
-            example_mapping=example_mapping,
-            example_answers=example_answers,
-            valid_labels=self.valid_labels,
-        )
+INPUT:[MASK0] is the current democratic presidential nominee
+OUTPUT: 'Harris'
 
-        keywords = RAGClassifier._extract_cloze_keywords(masked_text)
-        logging.info(f'keywords: {keywords}')
-        
-        # TODO: Make temperature and other hyperparameters tunable
-        output = ragnews.rag(
-            masked_text, db, keywords=keywords, system=system, 
-            temperature=0.5, stop='</answer>', max_articles_length=20000, verbose=True
-        )
+INPUT: [MASK0] is the democratic nominee and [MASK1] is the republican nominee
+OUTPUT:'Harris, Trump'
 
-        # Retry if no articles found
-        if 'No articles found' in output:
-            logging.warning('No articles found, trying again... attempt: %d', attempt)
-            return self.predict(masked_text, attempt=attempt+1)
+INPUT: {masked_text}
+OUTPUT: '''
+        output = ragnews.rag(textprompt, self.db, keywords_text=masked_text)
+        return output
 
-        # Retry if output is not in the correct format
-        if '<answer>' not in output and attempt < 3:
-            logging.warning('Error parsing output, trying again... attempt: %d', attempt)
-            return self.predict(masked_text, attempt=attempt+1)
-        elif '<answer>' not in output and attempt >= 3:
-            return []
+#Evaluating rag function with hairy-trumpet data set
+def main(data_file):
+    labels = []  
+    masked_texts = []
 
-        # Parse the output
-        output_lines = output.strip().split('<answer>')
-        # TODO deal with </answer>
-        results = [line for line in output_lines[-1].split('\n') if line.strip()]
+    # Extracting labels and masked texts from the hairy-trumpet dataset
+    with open(data_file) as fin:
+        for line in fin:
+            dp = json.loads(line)
+            masks = dp['masks']
+            labels.extend(masks) 
+            masked_texts.append(dp['masked_text'])
 
-        return results
+    logger.info(f'Extracted labels: {labels}')
+
+    evaluator = RAGEvaluator(labels)
+
+    # Predicting labels
+    predicted_labels = []
+    for masked_text in masked_texts:
+        prediction = evaluator.predict(masked_text)
+        if prediction: 
+            predicted_labels.append(prediction)
+        else:
+            predicted_labels.append([])
+
+    labels_flat = labels
+
+    print("predicted labels = ", predicted_labels)
+    print("labels =", labels_flat)
+
+    # Calculating accuracy
+    accuracy = accuracy_score(labels_flat, predicted_labels)
+    logger.info(f'Accuracy: {accuracy:.2f}')
 
 
 if __name__ == '__main__':
-    import argparse
-
-    # Argument parser for command line arguments
-    parser = argparse.ArgumentParser()
-    parser.add_argument('--data', type=str, required=True)
+    parser = argparse.ArgumentParser(description='Evaluate RAG system using Hairy Trumpet dataset.')
+    parser.add_argument('path', type=str, help='ragnews/hairy-trumpet')
     args = parser.parse_args()
 
-    # Load data from the specified file
-    with open(args.data, 'r') as f:
-        data = [json.loads(line) for line in f]
+    main(args.path)  # Passing args.path to the main function
 
-    # Extract unique labels from the data
-    labels = set()
-    with open(args.data) as fin:
-        for i, line in enumerate(fin):
-            dp = json.loads(line)
-            labels.update(dp['masks'])
-    
-    model = RAGClassifier(labels)
 
-    success = 0
-    failure = 0
-    results_table = []
-
-    # Evaluate the model on the dataset
-    for i, d in enumerate(data):
-        logging.info('On example %d out of %d', i, len(data))
-        prediction = model.predict(d['masked_text'])
-        print('Predicted labels:', prediction)
-        print('Actual labels:', d['masks'])
-        print('-' * 100)
-        print()
-
-        if len(prediction) == len(d['masks']):
-            if all(mask.lower() in pred.lower() for mask, pred in zip(d['masks'], prediction)):
-                success += 1
-                result = 'Success'
-            else:
-                failure += 1
-                result = 'Failure'
-        else:
-            failure += 1
-            result = 'Failure'
-        
-        results_table.append([i, d['masks'], prediction, result])
-
-    # Print the results
-    print('Success: %d' % success)
-    print('Failure: %d' % failure)
-    print(tabulate(results_table, headers=['Index', 'Actual Labels', 'Predicted Labels', 'Result'], tablefmt='pretty'))
-
-    # Calculate and print the success ratio
-    total = success + failure
-    if total > 0:
-        success_ratio = success / total
-        print('Success ratio: %.2f' % success_ratio)
-    else:
-        print('No data to evaluate')# for the querying, could send rewriter the question who is [MASK0] at the end
