@@ -1,3 +1,5 @@
+# Retrieval Augmented Generation (RAG) News Project ![](https://github.com/alexcnsf/RAGNews/workflows/tests/badge.svg)
+
 # RAG Classifier Evaluation
 
 This script runs a retrieval-augmented generation (RAG) classifier on the HairyTrumpet dataset using the Groq API. The goal is to achieve at least 70% accuracy on the specified data file.
