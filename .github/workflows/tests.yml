@@ -7,33 +7,43 @@ on:
     branches: ['*']
 
 jobs:
+  test_python_38:
+    runs-on: ubuntu-latest
+    env:
+      GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
+    steps:
+    - uses: actions/checkout@v2
+    - name: Set up Python 3.8
+      uses: actions/setup-python@v2
+      with:
+        python-version: 3.8
+    - name: Install expect
+      run: sudo apt-get update && sudo apt-get install -y expect
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+    - name: Run test script with expect
+      run: |
+        echo 'spawn python3 ragnews.py; expect "ragnews> "; send "Sample input\r"; interact' | expect
+
   test_python_39:
     runs-on: ubuntu-latest
     env:
       GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
     steps:
     - uses: actions/checkout@v2
-
-    # Initialize and update hairy-trumpet submodule
-    - name: Initialize and update hairy-trumpet submodule
-      run: git submodule update --init --recursive hairy-trumpet
-
     - name: Set up Python 3.9
       uses: actions/setup-python@v2
       with:
         python-version: 3.9
-
     - name: Install expect
       run: sudo apt-get update && sudo apt-get install -y expect
-
     - name: Install dependencies
       run: |
         python -m pip install --upgrade pip
-        if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
-
-    # Add the ragnews directory to PYTHONPATH and run evaluate.py with the correct path argument
-    - name: Test ragnews/evaluate.py
+        pip install -r requirements.txt
+    - name: Run test script with expect
       run: |
-        export PYTHONPATH=$PYTHONPATH:$(pwd)
-        python3 -m  ragnews/evaluate.py "hairy-trumpet/data/wiki__page=2024_United_States_presidential_election,recursive_depth=0__dpsize=paragraph,transformations=[canonicalize, group, rmtitles, split]"
+        echo 'spawn python3 ragnews.py; expect "ragnews> "; send "Sample input\r"; interact' | expect
 
