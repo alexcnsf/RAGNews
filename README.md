@@ -37,6 +37,7 @@ Based on the provided articles, the current Democratic Party presidential candid
 5. When you want to leave the program just use the command: 
 ```
 control^ + C 
+```
 
 
 # RAG Classifier Evaluation
